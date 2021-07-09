@@ -1,3 +1,4 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:shop_app/components/custom_surfix_icon.dart';
 import 'package:shop_app/components/form_error.dart';
@@ -20,6 +21,7 @@ class _SignFormState extends State<SignForm> {
   String password;
   bool remember = false;
   final List<String> errors = [];
+  bool loading = false;
 
   void addError({String error}) {
     if (!errors.contains(error))
@@ -59,8 +61,7 @@ class _SignFormState extends State<SignForm> {
               Text("Remember me"),
               Spacer(),
               GestureDetector(
-                onTap: () => Navigator.pushNamed(
-                    context, ForgotPasswordScreen.routeName),
+                onTap: () => Navigator.pushNamed(context, ForgotPasswordScreen.routeName),
                 child: Text(
                   "Forgot Password",
                   style: TextStyle(decoration: TextDecoration.underline),
@@ -70,20 +71,55 @@ class _SignFormState extends State<SignForm> {
           ),
           FormError(errors: errors),
           SizedBox(height: getProportionateScreenHeight(20)),
-          DefaultButton(
-            text: "Continue",
-            press: () {
-              if (_formKey.currentState.validate()) {
-                _formKey.currentState.save();
-                // if all are valid then go to success screen
-                KeyboardUtil.hideKeyboard(context);
-                Navigator.pushNamed(context, LoginSuccessScreen.routeName);
-              }
-            },
+          Stack(
+            alignment: Alignment.center,
+            children: [
+              Visibility(
+                  visible: !loading,
+                  child: DefaultButton(
+                    text: "Continue",
+                    press: () {
+                      if (_formKey.currentState.validate()) {
+                        _formKey.currentState.save();
+                        // if all are valid then go to success screen
+                        KeyboardUtil.hideKeyboard(context);
+                        doLogin(context);
+                        // Navigator.pushNamed(context, LoginSuccessScreen.routeName);
+                      }
+                    },
+                  )),
+              Visibility(
+                visible: loading,
+                child: CircularProgressIndicator(),
+              )
+            ],
           ),
         ],
       ),
     );
+  }
+
+  void doLogin(BuildContext context) {
+    setState(() {
+      loading = true;
+    });
+    FirebaseAuth.instance
+        .signInWithEmailAndPassword(email: email, password: password)
+        .then((value) {
+      setState(() {
+        loading = false;
+        if (value.user == null) {
+          addError(error: "Login gagal");
+        } else {
+          Navigator.pushNamed(context, LoginSuccessScreen.routeName);
+        }
+      });
+    }).catchError((onError) {
+      setState(() {
+        loading = false;
+        addError(error: onError.toString());
+      });
+    });
   }
 
   TextFormField buildPasswordFormField() {
